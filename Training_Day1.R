@@ -12,7 +12,7 @@ options(Seurat.object.assay.version = "v3")
 
 # Read in counts. 
 # Note: you may have to change the file path accordingly.
-cts <- read.csv("/Users/anwita.molaka/Library/CloudStorage/OneDrive-UniversityofVirginia/Bioinformatics/Learning-Resources/Example-Data/Lung12_exprMat_file.csv")
+cts <- read.csv("/Users/cnawrocki/Library/CloudStorage/OneDrive-UniversityofVirginia/Grainger-Lab/Bioinformatics/Learning-Resources/Example-Data/Lung12_exprMat_file.csv")
 cts
 
 # Get the counts into the correct format.
@@ -28,7 +28,7 @@ cts[1:6, 1:6]
 rownames(cts)
 
 # Read in the metadata. 
-meta <- read.csv("/Users/anwita.molaka/Library/CloudStorage/OneDrive-UniversityofVirginia/Bioinformatics/Learning-Resources/Example-Data/Lung12_metadata_file.csv")
+meta <- read.csv("/Users/cnawrocki/Library/CloudStorage/OneDrive-UniversityofVirginia/Grainger-Lab/Bioinformatics/Learning-Resources/Example-Data/Lung12_metadata_file.csv")
 
 # Get the metadata into the correct format. 
 rownames(meta) <- paste(meta$fov, meta$cell_ID, sep = "_")

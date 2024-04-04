@@ -14,7 +14,7 @@ library(scDblFinder)
 options(Seurat.object.assay.version = "v3")
 
 # Read in data
-cts <- Read10X("/Users/anwita.molaka/Library/CloudStorage/OneDrive-UniversityofVirginia/Bioinformatics/Learning-Resources/Example-Data/filtered_feature_bc_matrix")
+cts <- Read10X("/Users/cnawrocki/Library/CloudStorage/OneDrive-UniversityofVirginia/Grainger-Lab/Bioinformatics/Learning-Resources/Example-Data/filtered_feature_bc_matrix")
 cts <- cts[[1]]
 
 # Last time, we didn't do QC. Normally, you want to. 
@@ -64,6 +64,11 @@ FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "pct_counts_inTop20_gene
 options(future.globals.maxSize = 2e9)
 plan(strategy = "multisession", workers=4)
 
+# If you see a variable that is positively correlated with nCount_RNA, then it 
+# makes sense to regress it out. nFeature_RNA should be positively correlated 
+# with nCount_RNA though (this makes intuitive sense), and should not be 
+# regressed out, typically. We will regress it out here just for example's sake
+# (so we can get used to working with the functions).
 obj <- ScaleData(obj, vars.to.regress = "nFeature_RNA")
 obj <- RunPCA(obj, npcs = 50)
 
