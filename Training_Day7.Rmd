@@ -1,0 +1,130 @@
+---
+title: "Traing Day 7: Other Useful Things"
+date: "April 2024"
+author:
+- name: Cole Nawrocki
+  affiliation: Grainger Lab, UVA Department of Biology
+output:
+  BiocStyle::html_document:
+    code_folding: show
+    number_sections: no
+    toc_float: true
+abstract: |
+  The focus of this training day is to introduce some little tools that can be helpful for your presentations and your workflows. Among these tools are rmarkdown, BiocStyle, conda environments, and cellxgene. 
+vignette: |
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# rmarkdown
+
+`rmarkdown` files integrate R code (or python code) and markdown. They allow you to combine your code and organized word-processing. The `knitr` package will allow you to "knit" your `.Rmd` files to `.html` files or `.pdf` files. Each little block is its own R script. You can run the blocks individually and customize the formatting of plots produced by each block separately. See [here](https://www.markdownguide.org/cheat-sheet/) for information on markdown syntax.
+
+```{r eval=FALSE, include=TRUE}
+# Make sure you have these packages. There may be other dependencies you have to install.
+install.packages("knitr")
+install.packages("rmarkdown")
+library(knitr)
+library(rmarkdown)
+```
+
+# BiocStyle
+
+Normally, rmarkdown files do not come with all the nifty features I included above. To access these features, you must use the `BiocStyle` package from Bioconductor. See [here](https://bioconductor.org/packages/release/bioc/vignettes/BiocStyle/inst/doc/AuthoringRmdVignettes.html) for information on `BiocStyle`.
+
+```{r eval=FALSE, include=TRUE}
+BiocManager::install("BiocStyle")
+library(BiocStyle)
+```
+
+# Example of Knitting Some Plots
+
+We will use our analysis from Training Day 6.
+
+## Packages
+
+```{r message=FALSE, warning=FALSE}
+library(Seurat)
+library(tidyverse)
+library(ggrepel)
+```
+
+## Reading the Data
+
+```{r message=FALSE, warning=FALSE}
+st48 <- LoadSeuratRds("/Users/cnawrocki/Desktop/Day6_Cole/xenopus_training.Rds")
+```
+
+## Some Basic Plots
+
+Note how I changed the size of the figures.
+
+```{r fig.height=3, fig.width=12, message=FALSE, warning=FALSE}
+DimPlot(st48, split.by = "sample_id", label = T) + NoLegend()
+FeaturePlot(st48, features = c("krt12.L"), split.by = "sample_id", cols = c("blue","green"), order=T)
+```
+
+## Volcano Plot
+
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+res <- read.csv("/Users/cnawrocki/Desktop/Day6_Cole/Day6_DESeq2_Results.csv", row.names = 1)
+
+res$delabel<-'Neither'
+res$delabel[res$padj<0.05 & res$log2FoldChange > 1]<-"cluster10"
+res$delabel[res$padj<0.05 & res$log2FoldChange < -1]<-"cluster13"
+res <- res[order(res$delabel),]
+res$lbl<-NA
+res$lbl[res$delabel != 'Neither'] <- rownames(res)[res$delabel != 'Neither']
+v.plot<-ggplot(data=res,aes(x=log2FoldChange, y=-log10(padj),col=delabel, label=lbl)) +
+  geom_point() + theme_minimal() + geom_text_repel(max.overlaps = 50) +
+  labs(title="Cluster 13 vs Cluster 10") + 
+  scale_color_manual(values=c("cluster10"="red", "cluster13"="blue","Neither"="gray")) +
+  geom_vline(xintercept=c(-1,1),col="black") + 
+  geom_hline(yintercept=-log10(0.05),col="black")
+print(v.plot)
+```
+
+## Knitting
+
+To knit a file, use the "Knit" button on the toolbar above. It is to the left of the little gear and to the right of the little magnifying glass.
+
+# cellxgene
+
+This package is a tool for viewing anndata objects in a user interface. Sometimes, Dr. Grainger and Takuya like to use it. In order to use it, your data must be in the anndata format. So, first we will convert our object to anndata. Python does not use factor data. So, we want to change any important metadata columns that are factor to be character. This will make cellxgene display them correctly.
+
+```{r eval=FALSE, include=TRUE}
+library(SeuratDisk)
+st48$clusters_44 <- as.character(st48$clusters_44)
+SaveH5Seurat(st48, "/Users/cnawrocki/Desktop/Day6_Cole/xenopus_training.h5Seurat", overwrite = T)
+SeuratDisk::Convert(source = "/Users/cnawrocki/Desktop/Day6_Cole/xenopus_training.h5Seurat", 
+                    dest = "/Users/cnawrocki/Desktop/Day6_Cole/xenopus_training.h5ad", overwrite = T)
+```
+
+Now, the data is set up correctly. Next, we need to install [`cellxgene`](https://cellxgene.cziscience.com/docs/01__CellxGene). This can be done as follows via the command line:
+
+```{bash eval=FALSE, include=TRUE}
+pip install cellxgene
+```
+
+However, `cellxgene` relies on a specific version of `numpy`. You likely use more up-to-date versions of `numpy` for other packages and do not want to revert back. So what do we do? Use a conda environment.
+
+# Conda Environments
+
+Make sure you have `conda` installed. Create a new environment as follows via the command line. Below, we create a conda environment called "cellxgene-env" that uses python version 3.9, since this is the minimum version needed for `cellxgene`. Next, we will enter the environment and install the package. Basically, `cellxgene` will be installed in a clean environment, where dependencies and will not conflict. Therefore, the utility in conda environments is that they allow you to compartmentalize your package versions for specific use cases.
+
+```{bash eval=FALSE, include=TRUE}
+conda create -n "cellxgene-env" python=3.9
+conda activate cellxgene-env
+pip install cellxgene
+```
+
+Finally, we can use `cellxgene` from our new environment as follows:
+
+```{bash eval=FALSE, include=TRUE}
+cellxgene launch "/Users/cnawrocki/Desktop/Day6_Cole/xenopus_training.h5ad"
+```
+
+Instructions will appear in the terminal for you to follow. When you follow them, you should get to a UI that looks like this:
+
+![Another little trick for using rmarkdown in RStudio is to use the "Visual" tab (see top left of your screen). This tab allowed me to simply paste this image into my file.](images/cellxgene_example_ui.png)

@@ -141,7 +141,7 @@ SaveH5Seurat(st48, "xenopus_training.h5Seurat")
 SaveSeuratRds(st48, "xenopus_training.Rds")
 
 # Reading the data in (I am picking back up here at a later date).
-st48 <- LoadSeuratRds("xenopus_training.Rds")
+st48 <- LoadSeuratRds("/Users/cnawrocki/Desktop/Day6_Cole/xenopus_training.Rds")
 
 # Differential expression analysis to find cluster markers. 
 cluster_markers <- FindAllMarkers(st48, logfc.threshold = 1, test.use = "wilcox", only.pos = T)
@@ -178,6 +178,7 @@ dds <- DESeq(dds)
 # I have specified that positive LFC will correspond to cluster 10 and negative 
 # LFC will correspond to cluster 13.
 res <- results(dds, contrast = c("cluster", "cluster10", "cluster13")) |> as.data.frame() |> na.omit()
+write.csv(res, "Day6_DESeq2_Results.csv")
 
 # Summarizing with a volcano plot. 
 res$delabel<-'Neither'
