@@ -1,5 +1,5 @@
 ---
-title: "Traing Day 7: Other Useful Things"
+title: "Training Day 7: Other Useful Things"
 date: "April 2024"
 author:
 - name: Cole Nawrocki
@@ -127,4 +127,5 @@ cellxgene launch "/Users/cnawrocki/Desktop/Day6_Cole/xenopus_training.h5ad"
 
 Instructions will appear in the terminal for you to follow. When you follow them, you should get to a UI that looks like this:
 
-![Another little trick for using rmarkdown in RStudio is to use the "Visual" tab (see top left of your screen). This tab allowed me to simply paste this image into my file.](images/cellxgene_example_ui.png)
+![Another little trick for using rmarkdown in RStudio is to use the "Visual" tab (see top left of your screen). This tab allowed me to simply paste this image into my file.](/Users/cnawrocki/Desktop/cellxgene_example_ui.png)
+
