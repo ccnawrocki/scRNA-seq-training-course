@@ -1,0 +1,100 @@
+---
+title: "Training Day 8: Where does the data actually come from? -- Aligning reads
+  and counting them"
+date: "April 2024"
+author: 
+- name: Cole Nawrocki
+  affiliation: Grainger Lab, UVA Department of Biology
+output:
+  BiocStyle::html_document:
+    code_folding: show
+    number_sections: no
+    toc_float: true
+vignette: |
+  %\VignetteIndexEntry{Authoring R Markdown vignettes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# 10X Experiment Basics
+
+Here is a good picture:
+
+![](images/10X_Diagram.png)
+
+The little white dots coming from the bottom are cells. A tissue gets put into a solution of reagents that breaks the ECM and cell junctions, effectively dissociating the tissue into individual cells. These cells are fed single-file through a microfluidic channel.
+
+The colored dots are beads that are full of barcodes. In each bead, the barcodes are short, identical nucleotide oligomers. The barcodes for a bead are unique, compared to the barcodes in any other bead. The beads are fed single-file through a microfluidic channel.
+
+Every cell gets paired with one bead. Each pairing is sequestered in a little aqueous bubble when it enters oil. The bubble has reagents in it, inlcuding reverse transcriptase (RT). A reaction then occurs within every bubble that lyses the cell, ligates a barcode onto every mRNA that is released and then retrotranscribes that product to form cDNA. Finally, the emulsion is broken and the cDNA is isolated (possibly through DNA purification, but I honestly do not know for sure). The result is the cDNA library.
+
+# Sequencing
+
+The cDNA library is then sequenced with an Illumina sequencer, and the output is two fastq files: an R1 file and an R2 file. The R1 file contains every barcode sequence. The barcodes are also referred to as "unique molecular identifiers" (UMIs). The R2 file contains every mRNA sequence. These sequences are referred to as "reads." Another thing to note is that the Illumina sequencing amplifies each sequence (i.e. makes many copies). So, your fastqs may have a ton of reads for a certain transcript, but that number does not equal the number of times that that transcript showed up. The high number of reads could simply be many copies made during amplification.
+
+But, that is not a problem! This process, like any other lab protocol, is not perfect. This fact can be leveraged. The protocol does not result in the entire length of every mRNA transcript getting retrotranscribed. So, in a single cell, even if two idependent copies of the same mRNA get retrotranscribed, the resulting cDNAs will be incomplete fragments of the full transcript that are of slightly different lengths. This difference in lengths can be used to identify them as two separate original transcripts, indicating that their reads in the fastq file should be counted as two individual counts. Conversely, if the cDNAs are exactly identical, then we can be fairly sure that they represent the same mRNA and that one of the copies was made during amplification.
+
+Here is a simple example. Below, the first line and the third line represent the same mRNA and would contribute 1 count to whatever gene is represented by sequence 1 to cell 1's genetic profile. The second line would represent a different copy of that same gene's mRNA and would also contribute 1 count to whatever gene is represented by sequence 1 to cell 1's genetic profile. The fourth line contributes to that same gene's counts but for cell 2's profile. The fifth line contributes to a different gene's counts, also for cell 2's profile.
+
+R1 + R2
+
+UMI1+sequence1_length50
+
+UMI1+sequence1_length53
+
+UMI1+sequence1_length50
+
+UMI2+sequence1_length50
+
+UMI2+sequence2_length53
+
+Note: the fastq files include more information than this; this is just an example.
+
+# Mapping Reads
+
+So you have fastq files, but how do you get the counts tables? You have to do the process from the example above for every read, while matching each sequence to the transcriptome. This process is called "mapping" the reads. To accomplish the mapping, you have to assemble a reference genome and then run the `cellranger` pipeline (for 10X experiments). This pipeline will do the entire process for you. Remember: the reads are fragments, so they will not match a gene's transcript sequence exactly. Rather, they will match it partially, starting or ending at a random place. So, the pipeline will estimate the probability that a read matches every gene and then it will assign that read to whichever gene it most likely matches. In short, this process is super computationally expensive. So, you need to use a very powerful computer to perform the mapping, if you do not want to wait for your laptop to take two days to do it. Therefore, you should use an HPC and submit a slurm script (i.e. use Rivanna, if at UVA), or you should use a lab workstation (which we have).
+
+An important metric to pay attention to is sequencing depth. If you have many fragments and copies of fragments, then, given you have enough of them, eventually, they will overlap completely, "covering" the entire transcriptome. However, this never occurs in practice. The percentage of the transcriptome that is covered by overlapping fragments is referred to as the "sequencing depth." In a sense, it is a measure of the data's strength/reliability. In short, high sequencing depth is good.
+
+# Cellranger
+
+Step 1: Download cellranger [here](https://www.10xgenomics.com/support/software/cell-ranger/downloads).
+
+Step 2: Assemble the reference genome, if you do not have one already. The reference genome for our lab is in \~/Bioinformatics/Reference-Genome. If you need to assemble one, you will need a FASTA file, which has the actual nucleotide bases of the genome in it, and a GTF file, which has gene annotations in it. Assemble the reference (after filtering the GTF, if needed) by using `cellranger` in the following way:
+
+```{bash eval=FALSE, include=TRUE}
+## First, filter the gtf, if needed (probably won't make much of a difference if
+## you do not). 
+cellranger mkgtf \
+PATH_TO_GTF \
+PATH_TO_NEW_GTF \
+--attribute=gene_biotype:protein_coding
+
+## Second, make the reference genome. 
+cellranger mkref \
+--genome=PATH_TO_NEW_REF_GENOME \
+--fasta=PATH_TO_FASTA \
+--genes=PATH_TO_NEW_GTF
+```
+
+Step 3: Run `cellranger count` to get the output files you will need in the following way:
+
+```{bash eval=FALSE, include=TRUE}
+cellranger count \
+--id=NAME_OF_RUN \
+--fastqs=DIR_OF_FASTQS \
+--sample=NAMES_OF_SAMPLES \
+--transcriptome=PATH_TO_NEW_REF_GENOME \
+--expect-cells=10000 \
+--localcores=20 \
+--localmem=100 \
+--include-introns=true
+```
+
+The names of the samples can be one sample name or multiple names separated by commas. Above, I specified the computer to use 20 CPUs and 100 GB of RAM. This process should take \~2 hours. For single nuclei data, you will want to include the introns in the mapping process.
+
+Note: there are some more resources in the Learning-Resources and in the Pipelines folder that ought to make this more clear, if this is not making sense at first.
+
+# The Outputs
+
+Once `cellranger count` finishes running, the output will be a folder that is named whatever you set as the `id`. Inside, there will be a folder called "outs" and, inside that folder, there will be many files. Among these there will be a file called "web_summary.html" that you should save and a folder called "filtered_feature_bc_matrix" that you should also save. The web summary will give useful stats and possibly warnings about the data. The folder is the counts matrix saved in the `dgCMatrix` format. This matrix can be read into R with `Seurat`'s `Read10X` function.
